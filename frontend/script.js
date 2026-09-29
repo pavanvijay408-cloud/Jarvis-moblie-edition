@@ -1,99 +1,49 @@
-// ===== Gemini Call + Reply + Voice =====
-async function callGemini(p){
-  let lastErr;
-  for(const m of MODELS){
-    try{
-      const res = await fetch(
-        "https://generativelanguage.googleapis.com/v1beta/models/" + m + ":generateContent?key=" + API_KEY,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ contents: [{ parts: [{ text: p }] }] })
-        }
-      );
+const chat = document.getElementById('chat');
+const input = document.getElementById('msg');
+const sendBtn = document.getElementById('send');
 
-      const data = await res.json();
+sendBtn.onclick = sendMessage;
 
-      if(data.error){
-        lastErr = new Error(data.error.message);
-        if(/high demand|temporar|quota|rate|unavailable|no longer available|deprecated/i.test(data.error.message)) continue;
-        throw lastErr;
-      }
+input.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') sendMessage();
+});
 
-      return data.candidates[0].content.parts[0].text;
-    } catch(e){
-      lastErr = e;
-    }
+function sendMessage() {
+  const text = input.value.trim();
+  if (!text) return;
+
+  add('YOU: ' + text, 'user');
+  input.value = '';
+
+  add('J.A.R.V.I.S: Processing...', 'ai');
+
+  setTimeout(() => {
+    const reply = getReply(text.toLowerCase());
+    chat.lastChild.innerHTML = 'J.A.R.V.I.S: ' + reply;
+    chat.scrollTop = chat.scrollHeight;
+  }, 800);
+}
+
+function getReply(msg) {
+  if (msg.includes('hello') || msg.includes('hi')) {
+    return 'Hello Boss. Systems are online.';
   }
-  throw lastErr;
-}
-
-async function askGemini(p){
-  add('J.A.R.V.I.S: Thinking...', 'ai');
-  try{
-    const reply = await callGemini(p);
-    chat.lastChild.innerText = 'J.A.R.V.I.S: ' + reply;
-    speak(reply); // reply ని వెంటనే VOICE లో చెప్పు
-  }catch(e){
-    chat.lastChild.innerText = 'J.A.R.V.I.S: ERROR - ' + e.message;
+  if (msg.includes('status')) {
+    return 'AI Core online. Network online. Voice and Memory are locked for now.';
   }
+  if (msg.includes('name')) {
+    return 'I am J.A.R.V.I.S, your mobile edition assistant.';
+  }
+  if (msg.includes('time')) {
+    return 'Current time is ' + new Date().toLocaleTimeString();
+  }
+  return 'Systems online. How may I assist you, Boss?';
 }
 
-// ===== 4. SPEECH RECOGNITION (వినడం) =====
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-const rec = new SR();
-rec.lang = 'en-US'; // Telugu కి 'te-IN'
-
-rec.onresult = (e) => {
-  const t = e.results[0][0].transcript;
-  add('YOU: ' + t, 'user');
-  askGemini(t);
-};
-
-micBtn.onclick = () => {
-  rec.start();
-  micBtn.innerText = 'LISTENING...';
-};
-
-rec.onend = () => {
-  micBtn.innerText = '🎤';
-};
-
-// ===== 5. TEXT-TO-SPEECH (మాట్లాడటం) =====
-let voices = [];
-
-function loadVoices(){
-  voices = speechSynthesis.getVoices();
-}
-
-loadVoices();
-speechSynthesis.onvoiceschanged = loadVoices;
-
-function speak(t){
-  const u = new SpeechSynthesisUtterance(t);
-  u.rate = 1.05;
-  u.pitch = 0.85;
-
-  const v = voices.find(v => v.lang.startsWith('en'));
-  if(v) u.voice = v;
-
-  speechSynthesis.speak(u);
-}
-
-// ===== 6. TEXT SEND BUTTON =====
-document.getElementById('send').onclick = () => {
-  const t = input.value.trim();
-  if(!t) return;
-
-  add('YOU: ' + t, 'user');
-  input.value = "";
-  askGemini(t);
-};
-
-function add(t, w){
-  const d = document.createElement('div');
-  d.className = 'msg ' + w;
-  d.innerHTML = t;
-  chat.appendChild(d);
+function add(text, who) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + who;
+  div.innerHTML = text;
+  chat.appendChild(div);
   chat.scrollTop = chat.scrollHeight;
 }
